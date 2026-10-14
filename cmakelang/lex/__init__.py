@@ -94,6 +94,35 @@ class Token(object):
             "col={3})").format(self.type.name, repr(self.spelling), *self.begin)
 
 
+class _Scanner(object):
+  """Ordered regex scanner compatible with re.Scanner's token behavior."""
+
+  def __init__(self, lexicon, flags):
+    self.lexicon = [(re.compile(pattern, flags), action)
+                    for pattern, action in lexicon]
+
+  def scan(self, text):
+    tokens = []
+    position = 0
+    while position < len(text):
+      for pattern, action in self.lexicon:
+        match = pattern.match(text, position)
+        if match:
+          spelling = match.group()
+          if callable(action):
+            action = action(self, spelling)
+          if action is not None:
+            tokens.append(action)
+          position = match.end()
+          break
+      else:
+        break
+    return tokens, text[position:]
+
+
+_TOKEN_SCANNER = None
+
+
 def tokenize(contents):
   """
   Scan a string and return a list of Token objects representing the contents
@@ -132,7 +161,9 @@ def tokenize(contents):
 
   # Regexes are in priority order. Changing the order may alter the
   # behavior of the lexer
-  scanner = re.Scanner([
+  global _TOKEN_SCANNER
+  if _TOKEN_SCANNER is None:
+    _TOKEN_SCANNER = _Scanner([
       # double quoted string
       # NOTE(josh): regex borrowed from
       # https://stackoverflow.com/a/37379449/141023
@@ -183,7 +214,8 @@ def tokenize(contents):
       # Catch-all for literals which are compound statements.
       (r"([^\s\(\)]+|[^\s\(]*[^\)]|[^\(][^\s\)]*)",
        lambda s, t: (TokenType.UNQUOTED_LITERAL, t)),
-  ], re.DOTALL)
+    ], re.DOTALL)
+  scanner = _TOKEN_SCANNER
 
   tokens_return = []
   if contents.startswith("\ufeff"):

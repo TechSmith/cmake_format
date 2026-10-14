@@ -24,6 +24,14 @@ class TestSpecificLexings(unittest.TestCase):
         TokenType.WHITESPACE, TokenType.BRACKET_ARGUMENT, TokenType.WHITESPACE,
         TokenType.WORD, TokenType.RIGHT_PAREN])
 
+    token = lex.tokenize("[==[inside ]=] text]==]")[0]
+    self.assertEqual(TokenType.BRACKET_ARGUMENT, token.type)
+    self.assertEqual("[==[inside ]=] text]==]", token.spelling)
+
+  def test_bracket_argument_requires_matching_delimiter(self):
+    tokens = lex.tokenize("[==[inside ]=] text]=]")
+    self.assertNotIn(TokenType.BRACKET_ARGUMENT, [token.type for token in tokens])
+
   def test_bracket_comments(self):
     self.assert_tok_types("foo(bar #[=[hello world]=] baz)", [
         TokenType.WORD, TokenType.LEFT_PAREN, TokenType.WORD,
@@ -47,6 +55,22 @@ class TestSpecificLexings(unittest.TestCase):
           TokenType.COMMENT, TokenType.NEWLINE, TokenType.WHITESPACE,
           TokenType.BRACKET_COMMENT, TokenType.NEWLINE, TokenType.WHITESPACE
       ])
+
+    token = lex.tokenize("#[==[inside ]=] text]==]")[0]
+    self.assertEqual(TokenType.BRACKET_COMMENT, token.type)
+    self.assertEqual("#[==[inside ]=] text]==]", token.spelling)
+
+  def test_bracket_comment_requires_matching_delimiter(self):
+    tokens = lex.tokenize("#[==[inside ]=] text]=]")
+    self.assertNotIn(TokenType.BRACKET_COMMENT, [token.type for token in tokens])
+
+  def test_scanner_preserves_other_token_rules(self):
+    tokens = lex.tokenize("# cmake-format: off\n$(MAKE)\n# cmake-format: on")
+    self.assertEqual([
+        TokenType.FORMAT_OFF, TokenType.NEWLINE,
+        TokenType.UNQUOTED_LITERAL, TokenType.NEWLINE,
+        TokenType.FORMAT_ON
+    ], [token.type for token in tokens])
 
   def test_string(self):
     self.assert_tok_types("""\
