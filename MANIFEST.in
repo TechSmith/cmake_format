@@ -1,0 +1,3 @@
+include LICENSE
+include cmakelang/doc/README.rst
+recursive-include cmakelang/templates *
